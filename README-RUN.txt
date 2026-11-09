@@ -26,8 +26,6 @@ point at a hosted one - Supabase, Neon, Railway, RDS, etc.).
   npm run dev                 # starts on http://localhost:5000
 
 Default seeded logins (change these in production):
-  Admin:   admin@oathclasses.in   / admin123
-  Teacher: teacher@oathclasses.in / teacher123
 
 --------------------------------------------
 3) RUN THE FRONTEND (public site)
