@@ -129,24 +129,52 @@ function getSqlite(): DatabaseSync {
   return sqliteDb;
 }
 
+function getPgPool(): pg.Pool {
+  if (!pgPool) {
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 25000, // Neon wake hone ka wait
+      idleTimeoutMillis: 30000,
+      max: 5,
+    });
+    pgPool.on('error', (e) => console.warn('pg pool error:', e.message));
+  }
+  return pgPool;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Sirf connection wale errors retry hote hain, SQL errors seedha throw
+function isConnectionError(err: any): boolean {
+  const code = typeof err?.code === 'string' ? err.code : '';
+  if (/^[0-9A-Z]{5}$/.test(code)) {
+    return code.startsWith('08') || code.startsWith('57');
+  }
+  return true;
+}
+
 export const pool = {
   async query(text: string, params: any[] = []): Promise<{ rows: any[]; rowCount?: number | null }> {
-    if (!pgFailed) {
-      try {
-        if (!pgPool) {
-          pgPool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 1500 });
-        }
-        return await pgPool.query(text, params);
-      } catch (err: any) {
-        console.warn('PostgreSQL connection failed, falling back to SQLite:', err.message);
-        pgFailed = true;
-        if (pgPool) {
-          pgPool.end().catch(() => {});
-          pgPool = null;
+    // DATABASE_URL hai to hamesha Postgres (Neon). SQLite me kabhi nahi jaana.
+    if (process.env.DATABASE_URL && !pgFailed) {
+      const MAX_ATTEMPTS = 3;
+      let lastErr: any;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          return await getPgPool().query(text, params);
+        } catch (err: any) {
+          if (!isConnectionError(err)) throw err;
+          lastErr = err;
+          console.warn(`Neon not ready (attempt ${attempt}/${MAX_ATTEMPTS}): ${err.message}`);
+          if (pgPool) {
+            pgPool.end().catch(() => {});
+            pgPool = null;
+          }
+          if (attempt < MAX_ATTEMPTS) await sleep(3000);
         }
       }
+      throw new Error('Database is waking up, please try again in a few seconds. (' + (lastErr?.message || 'unknown') + ')');
     }
-
     // SQLite Fallback query execution
     const db = getSqlite();
     let sql = text.trim();
