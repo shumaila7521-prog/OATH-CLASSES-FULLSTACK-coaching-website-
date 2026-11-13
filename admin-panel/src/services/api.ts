@@ -15,7 +15,7 @@ export const FILE_BASE_URL: string = API_BASE_URL.replace(/\/api\/?$/, '');
 
 export function fileUrl(path?: string | null): string | undefined {
   if (!path) return undefined;
-  return /^https?:|^data:/.test(path) ? path : `${FILE_BASE_URL}${path}`;
+  return /^https?:|^data:/.test(path) ? path : `${FILE_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
 export const USE_MOCK =
@@ -71,6 +71,18 @@ const PUT = <T,>(p: string, body?: unknown, fb?: T) =>
 const DEL = <T,>(p: string, fb?: T) => request<T>(p, { method: 'DELETE' }, fb);
 
 const ok = { success: true } as const;
+
+/** Uploads a PDF/JPG/PNG to the backend (admin login required) and returns its "/uploads/..." URL. */
+export async function uploadFile(file: File): Promise<string> {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  const res = await fetch(`${API_BASE_URL}/upload`, { method: 'POST', headers: authHeader(), body: form });
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({} as any));
+    throw new Error(b.error || `Upload failed (${res.status})`);
+  }
+  return ((await res.json()) as { url: string }).url;
+}
 
 /* ---------------- Auth (UI only) ---------------- */
 export const adminLogin = (email: string, password: string) =>

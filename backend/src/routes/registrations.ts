@@ -92,8 +92,18 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 
 router.post('/:id/approve', requireAuth, async (req, res) => {
-  const { rows } = await pool.query("UPDATE registrations SET status = 'approved' WHERE id = $1 RETURNING id", [req.params.id]);
-  if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+  const found = await pool.query('SELECT * FROM registrations WHERE id = $1', [req.params.id]);
+  const reg = found.rows[0];
+  if (!reg) return res.status(404).json({ error: 'Not found' });
+  await pool.query("UPDATE registrations SET status = 'approved' WHERE id = $1", [req.params.id]);
+  // First approval turns the registration into a real student, so "Total Students" counts them.
+  if (reg.status !== 'approved') {
+    await pool.query(
+      `INSERT INTO students (name, father, mobile, email, school, course, batch, mode, enrollment)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'Enrolled')`,
+      [reg.student_name, reg.guardian_name ?? null, reg.phone, reg.email ?? null, reg.school ?? null, reg.course, reg.batch ?? null, reg.mode ?? null]
+    );
+  }
   res.json({ success: true });
 });
 

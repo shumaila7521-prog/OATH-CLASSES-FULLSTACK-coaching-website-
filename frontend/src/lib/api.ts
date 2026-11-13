@@ -65,7 +65,7 @@ export const FILE_BASE_URL: string = API_BASE_URL.replace(/\/api\/?$/, '');
 /** Turns "/uploads/abc.png" (as stored in the DB) into a full URL the <img>/<a> can load. */
 export function fileUrl(path?: string | null): string | undefined {
   if (!path) return undefined;
-  return /^https?:|^data:/.test(path) ? path : `${FILE_BASE_URL}${path}`;
+  return /^https?:|^data:/.test(path) ? path : `${FILE_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
 async function getJson<T>(path: string): Promise<T> {

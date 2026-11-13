@@ -26,9 +26,8 @@ export function Notes({ toast }: { toast: (m: string) => void }) {
       setData((d) => (d ?? []).map((n) => (n.id === form.id ? form : n)));
       toast('Note updated');
     } else {
-      const n = { ...form, id: 'N' + Math.random().toString().slice(2, 4) };
-      await api.uploadNote(n);
-      setData((d) => [...(d ?? []), n]);
+      const saved: any = await api.uploadNote(form);
+      setData((d) => [...(d ?? []), saved]);
       toast('Note uploaded');
     }
     setForm(null);
@@ -83,7 +82,14 @@ export function Notes({ toast }: { toast: (m: string) => void }) {
             <Field label="Batch"><Input value={form.batch} onChange={(e) => setForm({ ...form, batch: e.target.value })} /></Field>
             <div className="sm:col-span-2"><Field label="File (PDF)">
               <input type="file" className="w-full rounded-lg border border-dashed border-slate-300 px-3 py-6 text-sm"
-                onChange={(e) => setForm({ ...form, file: e.target.files?.[0]?.name ?? form.file ?? '' })} /></Field></div>
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try { const url = await api.uploadFile(f); setForm((x: any) => ({ ...x, file: url })); toast('File uploaded: ' + f.name); }
+                  catch (err: any) { toast(err.message || 'File upload failed'); }
+                }} />
+              {form.file && <p className="mt-1 text-xs text-emerald-600">Attached: {form.file}</p>}</Field></div>
             <div className="sm:col-span-2"><Button type="submit">{form.id ? 'Save Changes' : 'Upload'}</Button></div>
           </form>
         </Modal>
@@ -101,7 +107,7 @@ export function Tests({ toast }: { toast: (m: string) => void }) {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.id) { await api.updateTest(form.id, form); setData((d) => (d ?? []).map((t) => (t.id === form.id ? form : t))); toast('Test updated'); }
-    else { const t = { ...form, id: 'TS' + Math.random().toString().slice(2, 4) }; await api.createTest(t); setData((d) => [...(d ?? []), t]); toast('Test created'); }
+    else { const saved: any = await api.createTest(form); setData((d) => [...(d ?? []), saved]); toast('Test created'); }
     setForm(null);
   };
 
@@ -302,8 +308,7 @@ export function QuestionPapers({ toast }: { toast: (m: string) => void }) {
         <Modal wide title="Upload Question Paper" onClose={() => setForm(null)}>
           <form className="grid gap-3 sm:grid-cols-2" onSubmit={async (e) => {
             e.preventDefault();
-            const p = { ...form, id: 'QP' + Math.random().toString().slice(2, 4) };
-            await api.uploadQuestionPaper(p); setData((d) => [...(d ?? []), p]); toast('Paper uploaded'); setForm(null);
+            const saved: any = await api.uploadQuestionPaper(form); setData((d) => [...(d ?? []), saved]); toast('Paper uploaded'); setForm(null);
           }}>
             <div className="sm:col-span-2"><Field label="Title"><Input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field></div>
             <Field label="Course"><Select value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })}>
@@ -313,7 +318,14 @@ export function QuestionPapers({ toast }: { toast: (m: string) => void }) {
             <Field label="Exam Date"><Input type="date" value={form.examDate} onChange={(e) => setForm({ ...form, examDate: e.target.value })} /></Field>
             <div className="sm:col-span-2"><Field label="File">
               <input type="file" className="w-full rounded-lg border border-dashed border-slate-300 px-3 py-6 text-sm"
-                onChange={(e) => setForm({ ...form, file: e.target.files?.[0]?.name ?? '' })} /></Field></div>
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try { const url = await api.uploadFile(f); setForm((x: any) => ({ ...x, file: url })); toast('File uploaded: ' + f.name); }
+                  catch (err: any) { toast(err.message || 'File upload failed'); }
+                }} />
+              {form.file && <p className="mt-1 text-xs text-emerald-600">Attached: {form.file}</p>}</Field></div>
             <div className="sm:col-span-2"><Button type="submit">Upload</Button></div>
           </form>
         </Modal>
